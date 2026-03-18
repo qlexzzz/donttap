@@ -39,7 +39,8 @@
 }
 
 body { margin: 0;
- cursor: pointer !important;
+    transition: background-color 0.2s ease; 
+    cursor: crosshair !important;
     user-select: none; /* supported by Chrome and Opera */
    -webkit-user-select: none; /* Safari */
    -khtml-user-select: none; /* Konqueror HTML */
@@ -148,3 +149,4 @@ transition: all 1s;
 #patr:hover{
     color: #0092ff;
 }
+
