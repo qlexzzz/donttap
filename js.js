@@ -1,3 +1,127 @@
+const firebaseConfig = {
+  apiKey: "AIzaSyC3NW4M8VCPKv-fohUcgepRDUyeynuR7TA",
+  authDomain: "donttap-9acc7.firebaseapp.com",
+  databaseURL: "https://donttap-9acc7-default-rtdb.europe-west1.firebasedatabase.app", 
+  projectId: "donttap-9acc7",
+  storageBucket: "donttap-9acc7.firebasestorage.app",
+  messagingSenderId: "612177563959",
+  appId: "1:612177563959:web:b80c2c50638afdbbcacab2",
+  measurementId: "G-NW1F402M3B"
+};
+
+
+var myPersonalBest = localStorage.getItem("donttap_best") || 0;
+
+setTimeout(function() {
+    var bestDiv = document.getElementById("best");
+    if (bestDiv) {
+        bestDiv.innerHTML = "HI-SCORE<br>" + myPersonalBest;
+    }
+}, 1000);
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const database = firebase.database();
+
+
+function fetchMyBestFromServer(name) {
+    let searchName = name || localStorage.getItem("playerName");
+    
+    if (searchName && searchName !== "null" && searchName !== "") {
+        console.log("Firebase'den skorun aranıyor: " + searchName);
+        
+        database.ref('leaderboard/' + searchName).once('value').then((snapshot) => {
+            const data = snapshot.val();
+            
+            if (data && data.score !== undefined) {
+                const bestDiv = document.getElementById("best");
+                if (bestDiv) {
+                    bestDiv.innerHTML = "HI-SCORE<br>" + data.score;
+                    console.log("Skorun başarıyla çekildi: " + data.score);
+                }
+                
+
+                if (typeof FreRec !== 'undefined') {
+                    FreRec = [{record: data.score, date: data.date || ""}];
+                }
+
+                localStorage.setItem("my_best_score", data.score);
+            } else {
+                console.log("Bu isimle bir kayıt bulunamadı: " + searchName);
+            }
+        }).catch((err) => {
+            console.error("Firebase Hatası:", err);
+        });
+    } else {
+        console.log("Arama yapılacak isim bulunamadı (pName boş).");
+    }
+}
+
+function FreList() {
+    const list = document.getElementById("records");
+    if (!list) return;
+
+    database.ref('leaderboard').orderByChild('score').limitToLast(10).on('value', (snapshot) => {
+        let html = "<b style='color:#f460ff'>TOP 10 REKOR</b><br>";
+        let dataList = [];
+        snapshot.forEach(child => {
+            dataList.push({ name: child.key, score: child.val().score });
+        });
+        dataList.reverse().forEach((user, i) => {
+            html += `<div style="margin-bottom:2px">${i+1}. ${user.name}: ${user.score}</div>`;
+        });
+        list.innerHTML = html;
+    });
+}
+
+setTimeout(FreList, 1000);
+
+function saveScoreToFirebase(playerName, finalScore) {
+    if (!playerName || playerName === "null" || finalScore === undefined) return;
+
+    const userScoreRef = database.ref('leaderboard/' + playerName);
+    
+    userScoreRef.once('value', (snapshot) => {
+        const existingData = snapshot.val();
+        if (!existingData || finalScore > existingData.score) {
+            userScoreRef.set({
+                score: finalScore,
+                date: new Date().toLocaleDateString()
+            });
+        }
+    });
+}
+
+function FreR() {
+    today = new Date();
+    
+    if (sc > myPersonalBest) {
+        myPersonalBest = sc;
+        localStorage.setItem("donttap_best", sc);
+        var bestDiv = document.getElementById("best");
+        if (bestDiv) {
+            bestDiv.innerHTML = "HI-SCORE<br>" + sc;
+        }
+    }
+
+    let pName = localStorage.getItem("playerName") || prompt("Adın:");
+    if (pName) {
+        localStorage.setItem("playerName", pName);
+        database.ref('leaderboard/' + pName).once('value', (snap) => {
+            const oldData = snap.val();
+            if (!oldData || sc > oldData.score) {
+                database.ref('leaderboard/' + pName).set({
+                    score: sc,
+                    date: today.toLocaleDateString()
+                });
+            }
+        });
+    }
+}
+
+
+
+
 setTimeout(function(){
 
      var exdays = 1000;
@@ -25,7 +149,23 @@ setTimeout(function(){
 }
 
 
+const AudioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
+function playSound(freq, type, duration) {
+    const osc = AudioCtx.createOscillator();
+    const gain = AudioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    osc.connect(gain);
+    gain.connect(AudioCtx.destination);
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.00001, AudioCtx.currentTime + duration);
+    osc.stop(AudioCtx.currentTime + duration);
+}
+
+const soundHit = () => playSound(600, 'sine', 0.1);    
+const soundError = () => playSound(150, 'sawtooth', 0.3);
+const soundRecord = () => playSound(800, 'square', 0.5);  
 
 var PatRec=[];
 var FreRec=[];
@@ -100,7 +240,7 @@ function SetCzoom()
     div.style.height=Math.round(w*1.5);
     div.style.left=x0+"px";
     div.style.top=0+"px";
-    div.style.backgroundColor='white';
+    div.style.backgroundColor='black';
     div.style.pointerEvents='none';
     document.body.appendChild(div);
 
@@ -192,15 +332,6 @@ Rec.innerHTML+=" — ";
 Rec.innerHTML+=PatRec[i].date;
 Rec.innerHTML+="<br>";}}
 
-   function FreList(){
-Rec.innerHTML="FRENZY:<br>";
-for (var z=0;z<FreRec.length;z++){
-       console.log("Lll");
-Rec.innerHTML+=FreRec[z].record;
-Rec.innerHTML+=" — ";
-Rec.innerHTML+=FreRec[z].date;
-Rec.innerHTML+="<br>";
-}}
 
 button.addEventListener ("click", function() {
  horiAr = [];
@@ -375,7 +506,7 @@ contextB.beginPath();
 for (var i = 0; i < hopX.length; i++) {
 contextB.rect(hopX[i]*sqsize,hopY[i]*sqsize,sqsize,sqsize);
 }
-contextB.fillStyle = 'black';
+contextB.fillStyle = 'white';
 contextB.closePath();
 contextB.fill();
 };
@@ -514,99 +645,134 @@ function Refresh(p) {
  Errr=0;
  Score.innerHTML="0";
  Time.innerHTML="30";
- if (FreRec.length>0){
-    Best.innerHTML="HI-SCORE<br>"+FreRec[0].record;}else{Best.innerHTML="HI-SCORE<br>";}
+if (localStorage.getItem("my_best_score")) {
+    Best.innerHTML = "HI-SCORE<br>" + localStorage.getItem("my_best_score");
+} else if (FreRec.length > 0) {
+    Best.innerHTML = "HI-SCORE<br>" + FreRec[0].record;
+} else {
+    Best.innerHTML = "HI-SCORE<br>-";
+}
  clearInterval(timerGP);
    if (p==0){
  clearInterval(timerGO);
  timerWent = false;
  TimeL = 30;
  Timer();
-    //DrawSquares();
- horiAr[0] = Math.floor(Math.random() * (4 - 1 + 1));
- vertAr[0] = Math.floor(Math.random() * (4 - 1 + 1));
- horiAr[1] = horiAr[0];
- vertAr[1] = vertAr[0];
- while (horiAr[1] == horiAr[0] && vertAr[1] == vertAr[0]) {
- horiAr[1] = Math.floor(Math.random() * (4 - 1 + 1));
- vertAr[1] = Math.floor(Math.random() * (4 - 1 + 1));
+horiAr[0] = Math.floor(Math.random() * 4);
+vertAr[0] = Math.floor(Math.random() * 4);
+
+horiAr[1] = horiAr[0];
+vertAr[1] = vertAr[0];
+while (horiAr[1] == horiAr[0] && vertAr[1] == vertAr[0]) {
+    horiAr[1] = Math.floor(Math.random() * 4);
+    vertAr[1] = Math.floor(Math.random() * 4);
 }
- horiAr[2] = horiAr[0];
- vertAr[2] = vertAr[0];
- while ((horiAr[2] == horiAr[0] && vertAr[2] == vertAr[0]) || (horiAr[2] == horiAr[1] && vertAr[2] == vertAr[1])) {
- horiAr[2] = Math.floor(Math.random() * (4 - 1 + 1));
- vertAr[2] = Math.floor(Math.random() * (4 - 1 + 1));
+
+horiAr[2] = horiAr[0];
+vertAr[2] = vertAr[0];
+while ((horiAr[2] == horiAr[0] && vertAr[2] == vertAr[0]) || (horiAr[2] == horiAr[1] && vertAr[2] == vertAr[1])) {
+    horiAr[2] = Math.floor(Math.random() * 4);
+    vertAr[2] = Math.floor(Math.random() * 4);
+}
+
+horiAr[3] = horiAr[0];
+vertAr[3] = vertAr[0];
+while ((horiAr[3] == horiAr[0] && vertAr[3] == vertAr[0]) || 
+       (horiAr[3] == horiAr[1] && vertAr[3] == vertAr[1]) || 
+       (horiAr[3] == horiAr[2] && vertAr[3] == vertAr[2])) {
+    horiAr[3] = Math.floor(Math.random() * 4);
+    vertAr[3] = Math.floor(Math.random() * 4);
+}
+
+horiAr[4] = horiAr[0];
+vertAr[4] = vertAr[0];
+while ((horiAr[4] == horiAr[0] && vertAr[4] == vertAr[0]) || 
+       (horiAr[4] == horiAr[1] && vertAr[4] == vertAr[1]) || 
+       (horiAr[4] == horiAr[2] && vertAr[4] == vertAr[2]) || 
+       (horiAr[4] == horiAr[3] && vertAr[4] == vertAr[3])) {
+    horiAr[4] = Math.floor(Math.random() * 4);
+    vertAr[4] = Math.floor(Math.random() * 4);
 }
 DrawBlack();
 PressKey.innerHTML="1";
     }
 };
 function DrawBlack(){
-contextB.clearRect(0, 0, canvasB.width, canvasB.height);
-contextB.beginPath();
-contextB.rect(horiAr[0]*sqsize,vertAr[0]*sqsize,sqsize,sqsize);
-contextB.rect(horiAr[1]*sqsize,vertAr[1]*sqsize,sqsize,sqsize);
-contextB.rect(horiAr[2]*sqsize,vertAr[2]*sqsize,sqsize,sqsize);
-contextB.fillStyle = 'black';
-contextB.closePath();
-contextB.fill();
+  contextB.clearRect(0, 0, canvasB.width, canvasB.height);
+  contextB.beginPath();
+  contextB.rect(horiAr[0]*sqsize, vertAr[0]*sqsize, sqsize, sqsize);
+  contextB.rect(horiAr[1]*sqsize, vertAr[1]*sqsize, sqsize, sqsize);
+  contextB.rect(horiAr[2]*sqsize, vertAr[2]*sqsize, sqsize, sqsize);
+  contextB.rect(horiAr[3]*sqsize, vertAr[3]*sqsize, sqsize, sqsize); // Yeni
+  contextB.rect(horiAr[4]*sqsize, vertAr[4]*sqsize, sqsize, sqsize); // Yeni
+  contextB.fillStyle = 'white';
+  contextB.closePath();
+  contextB.fill();
 }
 
 function DrawSquares() {
-//console.log(horiAr[0],vertAr[0],horiAr[1],vertAr[1],horiAr[2],vertAr[2],CoX,CoY);
-    CoX = Math.floor((cx-x0)/sqsize);
-    CoY = Math.floor((cy-w/4)/sqsize);
+    CoX = Math.floor((cx - x0) / sqsize);
+    CoY = Math.floor((cy - w / 4) / sqsize);
+    var hitIndex = -1;
+    
 
-for (var i = 0; i < horiAr.length; i++) {
-    if (horiAr[i] == CoX && vertAr[i] == CoY)
-    {
-for (var y = 0; y < horiAr.length; y++) {
-if (i != y) {OtherTiles[n] = y; n++;}
-}
-        n=0;
-horT = horiAr[i];
-verT = vertAr[i];
-horiAr[i] = Math.floor(Math.random() * (4 - 1 + 1));
-vertAr[i] = Math.floor(Math.random() * (4 - 1 + 1));
-//console.log(OtherTiles);
-while ((horiAr[i] == horiAr[OtherTiles[0]] && vertAr[i] == vertAr[OtherTiles[0]]) ||
-       (horiAr[i] == horiAr[OtherTiles[1]] && vertAr[i] == vertAr[OtherTiles[1]]) ||
-       (horiAr[i] == horT && vertAr[i] == verT)) {
-horiAr[i] = Math.floor(Math.random() * (4 - 1 + 1));
-vertAr[i] = Math.floor(Math.random() * (4 - 1 + 1));
-}
-contextB.clearRect(0, 0, canvasB.width, canvasB.height);
-contextB.beginPath();
-contextB.rect(horiAr[0]*sqsize,vertAr[0]*sqsize,sqsize,sqsize);
-contextB.rect(horiAr[1]*sqsize,vertAr[1]*sqsize,sqsize,sqsize);
-contextB.rect(horiAr[2]*sqsize,vertAr[2]*sqsize,sqsize,sqsize);
-contextB.fillStyle = 'black';
-contextB.closePath();
-contextB.fill();
-    //doit = 0;
-       // console.log(Bonus,"1");
-        if (Bonus<92){
-        Bonus = Bonus+8;}
-        else
-        {Bonus=100;}
-       // console.log(Bonus,"2");
+    for (var i = 0; i < horiAr.length; i++) {
+        if (horiAr[i] == CoX && vertAr[i] == CoY) {
+            hitIndex = i;
+            break;
+        }
+    }
+
+    if (hitIndex != -1) {
+        soundHit();
+        contextB.fillStyle = '#f460ff';
+        contextB.fillRect(oldX * sqsize, oldY * sqsize, sqsize, sqsize);
+        setTimeout(() => {
+            DrawBlack();
+        }, 50);
+        var oldX = horiAr[hitIndex];
+        var oldY = vertAr[hitIndex];
+        var isUnique = false;
+
+        while (!isUnique) {
+            horiAr[hitIndex] = Math.floor(Math.random() * 4);
+            vertAr[hitIndex] = Math.floor(Math.random() * 4);
+            isUnique = true;
+
+            if (horiAr[hitIndex] == oldX && vertAr[hitIndex] == oldY) {
+                isUnique = false;
+            }
+
+            for (var j = 0; j < horiAr.length; j++) {
+                if (hitIndex != j && horiAr[hitIndex] == horiAr[j] && vertAr[hitIndex] == vertAr[j]) {
+                    isUnique = false;
+                }
+            }
+        }
+
+        contextB.clearRect(0, 0, canvasB.width, canvasB.height);
+        contextB.beginPath();
+        for (var k = 0; k < horiAr.length; k++) {
+            contextB.rect(horiAr[k] * sqsize, vertAr[k] * sqsize, sqsize, sqsize);
+        }
+        contextB.fillStyle = 'white';
+        contextB.fill();
+
+        if (Bonus < 92) {
+            Bonus = Bonus + 8;
+        } else {
+            Bonus = 100;
+        }
         CalculateScore();
-        good=1;
-        break;
-}
-}
-
-      if (good==0) {
-          Errr=1;
-cXX = cx-x0;
-cYY = cy-w/4;
-DrawError();
-wOLD = w;
-cXXo =cXX;
-cYYo =cYY;
-
-      }
-      good = 0;
+        
+        good = 1;
+    } else {
+        Errr = 1;
+        cXX = cx - x0;
+        cYY = cy - w / 4;
+        DrawError();
+    }
+    good = 0;
 }
 var today;
 var FreTem,temp;
@@ -645,35 +811,78 @@ function read_cookie(name) {
 
 
 function DrawError() {
-contextB.beginPath();
-    console.log(CoX,CoY);
-contextB.rect(CoX*sqsize,CoY*sqsize,sqsize,sqsize);
-contextB.fillStyle = '#AF1800';
-contextB.closePath();
-contextB.fill();
-contextB.lineWidth = 1;
-contextB.strokeStyle = '#0011DA';
-          contextB.beginPath();
-contextB.moveTo(cXX-5, cYY);
-contextB.lineTo(cXX+5, cYY);
-contextB.moveTo(cXX, cYY-5);
-contextB.lineTo(cXX, cYY+5);
-          contextB.stroke();
-          contextB.closePath();
+    div.style.transition = "none";
+    div.style.transform = "translateX(10px)";
+    setTimeout(() => { div.style.transform = "translateX(-10px)"; }, 50);
+    setTimeout(() => { div.style.transform = "translateX(0)"; }, 100);
+    soundError();
+    document.body.style.backgroundColor = "#400"; 
+    setTimeout(() => { document.body.style.backgroundColor = "black"; }, 100);
+    contextB.beginPath();
+    console.log(CoX, CoY);
+    contextB.rect(CoX * sqsize, CoY * sqsize, sqsize, sqsize);
+    contextB.fillStyle = '#AF1800';
+    contextB.closePath();
+    contextB.fill();
+    contextB.lineWidth = 1;
+    contextB.strokeStyle = '#0011DA';
+    contextB.beginPath();
+    contextB.moveTo(cXX - 5, cYY);
+    contextB.lineTo(cXX + 5, cYY);
+    contextB.moveTo(cXX, cYY - 5);
+    contextB.lineTo(cXX, cYY + 5);
+    contextB.stroke();
+    contextB.closePath();
 
-};
+    clearInterval(timerGO);
+
+    let pName = localStorage.getItem("playerName");
+
+    if (!pName || pName === "null") {
+        pName = prompt("İsim:", "Oyuncu");
+        if (pName && pName !== "null") {
+            localStorage.setItem("playerName", pName);
+        }
+    }
+
+    if (pName && pName !== "null" && sc > 0) {
+        const userRef = database.ref('leaderboard/' + pName);
+        
+        userRef.once('value', (snapshot) => {
+            const data = snapshot.val();
+            if (!data || sc > data.score) {
+                userRef.set({
+                    score: sc,
+                    date: new Date().toLocaleDateString()
+                });
+                console.log("++++");
+            }
+        });
+    }
+
+    if (typeof PressKey !== 'undefined') {
+        PressKey.innerHTML = "Press a key to start";
+    }
+}
 
 canvas.addEventListener("mousedown", ClickTile);
 
-function ClickTile() {
-    cx = event.clientX;
-    cy = event.clientY;
-if (TimeL > 0 && Errr == 0)
-{DrawSquares();}
-    if (!timerWent)
-    {Timer();}
+function ClickTile(e) {
+    if (e) {
+        cx = e.clientX;
+        cy = e.clientY;
+    }
 
+    if (TimeL > 0 && Errr == 0) {
+        DrawSquares();
+    }
+
+    if (!timerWent) {
+        Timer();
+    }
+    
 };
+
 
 //Score.innerHTML="&nbsp;"+"0";
 Score.id = "score";
@@ -690,7 +899,8 @@ div.appendChild(Score);
 
 var Best = document.createElement("div");
 Best.id = "best";
-Best.innerHTML="HI-SCORE<br>-";
+let currentBest = localStorage.getItem("my_best_score") || localStorage.getItem("donttap_best") || "-";
+Best.innerHTML = "HI-SCORE<br>" + currentBest;
 Best.style.position='absolute';
 Best.style.left= "75%";
 //Score.style.left=Math.round(w/2.23)+"px";
@@ -727,7 +937,7 @@ Time.style.padding=sqsize/8+'px';
 Time.style.top=0+"px";
 Time.style.zIndex=11;
 Time.style.pointerEvents='none';
-Time.style.color='black';
+Time.style.color='white';
 Time.style.textAlign ="left";
 Time.style.fontSize=Math.round(sqsize/1.8)+'px';
 div.appendChild(Time);
@@ -737,6 +947,20 @@ B5=Math.ceil(Bonus/20);
 sc=sc+B5;
 Score.innerHTML=sc;
 PressKey.innerHTML=B5;
+
+let myBest = localStorage.getItem("my_best_score") || 0;
+    if (sc > myBest && sc > 0) {
+        Score.style.color = "#00FF00";
+        if (sc == parseInt(myBest) + 1) {
+            soundRecord();
+            div.animate([
+                { transform: 'translate(1px, 1px) rotate(0deg)' },
+                { transform: 'translate(-1px, -2px) rotate(-1deg)' },
+                { transform: 'translate(-3px, 0px) rotate(1deg)' },
+                { transform: 'translate(0px, 0px) rotate(0deg)' }
+            ], { duration: 100 });
+        }
+    }
 };
 
      function Timer() {
@@ -773,3 +997,25 @@ Refresh(0);}else{RefrePP(0);}
 if (PaC != "") {Patt=Math.abs(Number(PaC)-1);button.click();}else{Patt=0;}
 
         }, 50);
+
+
+
+let pName = localStorage.getItem("playerName");
+
+if (!pName || pName === "null") {
+    pName = prompt("Adın:");
+    if (pName) {
+        localStorage.setItem("playerName", pName);
+        fetchMyBestFromServer(pName);
+    }
+} else {
+    fetchMyBestFromServer(pName);
+}
+window.onload = function() {
+    let savedName = localStorage.getItem("playerName");
+    if (savedName) {
+        console.log("Sorgulanıyor: " + savedName);
+        fetchMyBestFromServer(savedName);
+    }
+    setTimeout(FreList, 1000); 
+};
